@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from locators.order_page_locators import OrderPageLocators
 from locators.main_page_locators import MainPageLocators
 from .base_page import BasePage
+from selenium.common.exceptions import TimeoutException
 
 class OrderPage(BasePage):
     @allure.step("Клик по кнопке Заказать")
@@ -25,12 +26,11 @@ class OrderPage(BasePage):
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
         self.driver.execute_script("arguments[0].click();", element)
         
-        # Ждём перехода на страницу заказа
         WebDriverWait(self.driver, 15).until(
             EC.visibility_of_element_located(OrderPageLocators.HEADER_NAME_FIRST_STEP)
         )
 
-    @allure.step("Заполнить первый шаг заказа")
+    @allure.step("Заполнить первый шаг формы заказа (поля: Имя, Фамиля, Адрес, Метро, Телефон)")
     def fill_step_1(self, data):
 
         self.find_element(OrderPageLocators.INPUT_FIRST_NAME).send_keys(data["first_name"])
@@ -65,7 +65,7 @@ class OrderPage(BasePage):
             EC.visibility_of_element_located(OrderPageLocators.HEADER_NAME_SECOND_STEP)
         )
 
-    @allure.step("Заполнить второй шаг заказа")
+    @allure.step("Заполнить второй шаг формы заказа (поля: Когда привезти самокат, Срок аренды, Цвет самоката, Комментарий курьеру)")
     def fill_step_2(self, data):
 
         date_input = WebDriverWait(self.driver, 10).until(
@@ -125,4 +125,14 @@ class OrderPage(BasePage):
     def get_success_text(self):
 
         return self.find_element(OrderPageLocators.SUCCESS_HEADER).text
+    
+    @allure.step("Проверить отображение попапа успеха")
+    def is_success_popup_visible(self) -> bool:
+        try:
+            element = WebDriverWait(self.driver, 10).until(
+                EC.visibility_of_element_located(OrderPageLocators.SUCCESS_MODAL)
+            )
+            return element.is_displayed()
+        except TimeoutException:
+            return False
     

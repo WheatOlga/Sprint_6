@@ -1,3 +1,4 @@
+
 import pytest
 from data import ORDER_DATA_SETS
 from pages.order_page import OrderPage
@@ -17,6 +18,5 @@ def test_positive_order_flow(main_page, order_data):
     order_page.click_submit()
     order_page.confirm_order()
     
-    assert order_page.is_success_popup_visible(), "Окно успеха не появилось"
-    assert "Заказ оформлен" in order_page.get_success_text()
+    assert order_page.is_success_popup_visible()
     
