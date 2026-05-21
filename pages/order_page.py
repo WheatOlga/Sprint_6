@@ -1,18 +1,15 @@
-
 import allure
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from locators.order_page_locators import OrderPageLocators
 from locators.main_page_locators import MainPageLocators
-from .base_page import BasePage
-from selenium.common.exceptions import TimeoutException
+from pages.base_page import BasePage
+
 
 class OrderPage(BasePage):
+    
     @allure.step("Клик по кнопке Заказать")
     def click_order_button(self, entry_point):
-        
         self.close_cookie_popup()
         
         if entry_point == "header":
@@ -20,19 +17,14 @@ class OrderPage(BasePage):
         else:
             locator = MainPageLocators.BOTTOM_ORDER_BUTTON
         
-        element = WebDriverWait(self.driver, self.timeout).until(
-            EC.element_to_be_clickable(locator)
-        )
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        self.driver.execute_script("arguments[0].click();", element)
+        element = self.wait_for_clickable(locator)
+        self.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        self.execute_script("arguments[0].click();", element)
         
-        WebDriverWait(self.driver, 15).until(
-            EC.visibility_of_element_located(OrderPageLocators.HEADER_NAME_FIRST_STEP)
-        )
+        self.wait_for_visible(OrderPageLocators.HEADER_NAME_FIRST_STEP, timeout=15)
 
-    @allure.step("Заполнить первый шаг формы заказа (поля: Имя, Фамиля, Адрес, Метро, Телефон)")
+    @allure.step("Заполнить первый шаг формы заказа")
     def fill_step_1(self, data):
-
         self.find_element(OrderPageLocators.INPUT_FIRST_NAME).send_keys(data["first_name"])
         self.find_element(OrderPageLocators.INPUT_LAST_NAME).send_keys(data["last_name"])
         self.find_element(OrderPageLocators.INPUT_ADDRESS).send_keys(data["address"])
@@ -42,97 +34,75 @@ class OrderPage(BasePage):
         subway_input.clear()
         subway_input.send_keys(data["subway"])
         
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, ".select-search.has-focus"))
-        )
+        self.wait_for_visible(OrderPageLocators.SUBWAY_OPTIONS_CONTAINER)
         
-        option_xpath = f"//div[contains(@class, 'select-search') and .//text()[contains(., '{data['subway']}')]]"
-        
-        option = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, f"//*[contains(@class, 'select-search')]//*[contains(text(), '{data['subway']}')]")
-            )
+        subway_option_locator = (
+            By.XPATH, 
+            OrderPageLocators.SUBWAY_OPTION_TEMPLATE.format(value=data["subway"])
         )
+        option = self.wait_for_clickable(subway_option_locator)
         option.click()
 
         self.find_element(OrderPageLocators.INPUT_PHONE).send_keys(data["phone"])
 
     @allure.step("Нажать кнопку Далее")
     def click_next(self):
-
         self.find_element(OrderPageLocators.BUTTON_NEXT).click()
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located(OrderPageLocators.HEADER_NAME_SECOND_STEP)
-        )
+        self.wait_for_visible(OrderPageLocators.HEADER_NAME_SECOND_STEP)
 
-    @allure.step("Заполнить второй шаг формы заказа (поля: Когда привезти самокат, Срок аренды, Цвет самоката, Комментарий курьеру)")
+    @allure.step("Заполнить второй шаг формы заказа")
     def fill_step_2(self, data):
 
-        date_input = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable(OrderPageLocators.INPUT_DATE)
-        )
+        date_input = self.wait_for_clickable(OrderPageLocators.INPUT_DATE)
         date_input.click()
         
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".react-datepicker"))
-        )
+        self.wait_for_present(OrderPageLocators.DATEPICKER_CONTAINER)
         
         day, month, year = data["date"].split(".")
-        day = int(day) 
+        day = int(day)
         
-        day_locator = (By.XPATH, f"//div[contains(@class, 'react-datepicker__day') and @aria-disabled='false' and contains(@aria-label, '{day}-е')]")
-        
-        day_element = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable(day_locator)
+        day_locator = (
+            By.XPATH, 
+            OrderPageLocators.DATE_DAY_TEMPLATE.format(value=f"{day}-е")
         )
+        day_element = self.wait_for_clickable(day_locator)
         day_element.click()
 
         dropdown = self.find_element(OrderPageLocators.DROPDOWN_RENTAL_PERIOD)
         dropdown.click()
-        option = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'Dropdown-option') and text()='{data['rental_period']}']"))
+        
+        option_locator = (
+            By.XPATH, 
+            OrderPageLocators.RENTAL_OPTION_TEMPLATE.format(value=data["rental_period"])
         )
+        option = self.wait_for_clickable(option_locator)
         option.click()
 
-        self.find_element((By.XPATH, f"//label[contains(text(), '{data['color']}')]")).click()
+        color_locator = (
+            By.XPATH, 
+            OrderPageLocators.COLOR_LABEL_TEMPLATE.format(value=data["color"])
+        )
+        self.find_element(color_locator).click()
 
         self.find_element(OrderPageLocators.TEXTAREA_COMMENT).send_keys(data["comment"])
 
-    @allure.step("Нажать на кнопку Заказать")
+    @allure.step("Нажать на финальную кнопку Заказать")
     def click_submit(self):
-
         self.find_element(OrderPageLocators.BUTTON_SUBMIT).click()
 
-    @allure.step("В попапе подтверждения нажать кнопку Да")
+    @allure.step("Подтвердить заказ в модальном окне")
     def confirm_order(self):
-
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located(OrderPageLocators.CONFIRM_MODAL_CONTAINER)
-        )
+        self.wait_for_visible(OrderPageLocators.CONFIRM_MODAL_CONTAINER)
         self.find_element(OrderPageLocators.BUTTON_MODAL_YES).click()
 
-    @allure.step("Открывает попап успешного оформления заказа")
-    def is_success_popup_visible(self):
-
+    @allure.step("Проверить появление попапа успеха")
+    def is_success_popup_visible(self) -> bool:
         try:
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located(OrderPageLocators.SUCCESS_MODAL)
-            )
+            self.wait_for_visible(OrderPageLocators.SUCCESS_MODAL)
             return True
         except Exception:
             return False
-    @allure.step("Выводятся текст Заказ оформлен")
-    def get_success_text(self):
-
-        return self.find_element(OrderPageLocators.SUCCESS_HEADER).text
     
-    @allure.step("Проверить отображение попапа успеха")
-    def is_success_popup_visible(self) -> bool:
-        try:
-            element = WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located(OrderPageLocators.SUCCESS_MODAL)
-            )
-            return element.is_displayed()
-        except TimeoutException:
-            return False
-    
+    @allure.step("Получить текст заголовка успеха")
+    def get_success_text(self) -> str:
+        return self.get_text(OrderPageLocators.SUCCESS_HEADER)
